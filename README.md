@@ -63,7 +63,7 @@ Action:  0
 so then upon taking the step we end up like this 
 
 <p align="center">
-<img src="/img/mb_agent_8x8a.png">
+<img src="/img/mb_agent_8x8b.png">
 </p>
 
 ### Actions
