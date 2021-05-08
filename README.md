@@ -49,15 +49,15 @@ Here we make an 8 by 8 grid, and the agent (red dot) is initialized at random.
 If we sample an action, 
 
 ```
-action = env.sample_actions() # samples at random
+action = env.action_space.sample() # samples actions at random
 print("Action: ", action)
 env.step(action)
 ```
 
-which in this case randomly selects up or `'U'`, i.e. 
+which in this case randomly selects up or `0`, i.e. 
 
 ```
-Action:  U
+Action:  0
 ```
 
 so then upon taking the step we end up like this 
@@ -69,11 +69,11 @@ so then upon taking the step we end up like this
 ### Actions
 
 Possible actions:
-- `U`: Go up one space
-- `D`: Go down one space
-- `L`: Go left one space
-- `R`: Go right one space
-- `N`: Do nothing 
+- `0`: Go up one space
+- `1`: Go down one space
+- `2`: Go left one space
+- `3`: Go right one space
+- `4`: Do nothing 
 
 ### Rewards
 
@@ -118,21 +118,16 @@ import matplotlib.pyplot as plt
 env = gym.make('gym_muller_brown:MullerBrownDiscrete-v0',m=9,n=9)
 
 # define the agent's policy (argmax of Q function)
-def policy(Q, state, actions):
-    values = np.array([Q[state,a] for a in actions])
-    action = np.argmax(values)
-    return actions[action]
+def policy(Q, state):
+    ix,iy = state
+    return np.argmax(Q[ix,iy,:])
 
 # model hyperparameters
 learning_rate = 0.1
 discount = 0.99
 epsilon = 1.0
 
-# initialize Q-table to zero
-Q = {}
-for state in env.state_space:
-    for action in [*env.action_space]: # action_space is a dict, so take keys
-        Q[state, action] = 0
+Q = np.zeros((env.m,env.n,5))
 
 max_episode = 1000
 steps_per_episode = 50
@@ -140,7 +135,7 @@ episode_rewards = []
 for episode in range(max_episode):
 
     observation = env.reset()
-    inital_energy = env.energies[observation]
+    initial_energy = env.energy(observation)
 
     total_reward = 0
     for idx in range(steps_per_episode):
@@ -148,21 +143,21 @@ for episode in range(max_episode):
 
         if np.random.random() < (1 - epsilon):
             # choose argmax Q
-            action = policy(Q,observation,[*env.action_space])
+            action = policy(Q,observation)
         else:
-            # choose random action 
-            action = env.sample_actions()
+            # choose random action
+            action = env.action_space.sample()
 
         new_observation, reward, done, info = env.step(action)
         total_reward += reward
 
-        new_action = policy(Q, new_observation, [*env.action_space]) # Q learning always take argmax
-        Q[observation,action] = Q[observation,action] + learning_rate*(reward + \
-                    discount*Q[new_observation,new_action] - Q[observation,action])
+        new_action = policy(Q, new_observation) # Q learning always take argmax
+        Q[observation[0],observation[1],action] = Q[observation[0],observation[1],action] + learning_rate*(reward + \
+                    discount*Q[new_observation[0],new_observation[1],new_action] - Q[observation[0],observation[1],action])
         observation = new_observation
 
     epsilon = epsilon*np.exp(-0.5*episode/max_episode) # naive decay of epsilon
-    episode_rewards.append(total_reward - inital_energy)
+    episode_rewards.append(total_reward - initial_energy)
 
 plt.plot(episode_rewards)
 plt.xlabel('episode')
@@ -181,23 +176,17 @@ which yields the reward profile over training:
 If you want to plot the learned policy from the RL training over the PES, here's one way you could do it following the naive Q-learning example above:
 
 ```
-def plotQ(Q_dict):
+def plotQ(Q):
 
     env.plotPES()  # PES is our background
 
-    Q = np.zeros((env.m,env.n,len(env.action_space)))
-    action_idx = {'U':0,'D':1,'L':2,'R':3,'N':4} # map action representation
     idx_action = {0:'^',1:'v',2:'<',3:'>',4:'o'} # map action to marker
     idx_color = {0:'k',1:'k',2:'k',3:'k',4:'#C91A09'} # map action to color
-    for state,action in Q_dict:
-        x = state % env.m
-        y = state // env.m
-        a = action_idx[action]
-        Q[x,y,a] = Q_dict[(state,action)]
 
     for i,x in enumerate(env.x_values):
         for j,y  in enumerate(env.y_values):
-            plt.plot(x, y, marker=idx_action[np.argmax(Q[i,j,:])],color=idx_color[np.argmax(Q[i,j,:])],markersize=4)
+            best_action = np.argmax(Q[i,j,:])
+            plt.plot(x, y, marker=idx_action[best_action],color=idx_color[best_action],markersize=4)
 
     plt.show()
 ```
