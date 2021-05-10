@@ -1,1 +1,2 @@
 from gym_muller_brown.envs.muller_brown_discrete import MullerBrownDiscreteEnv
+from gym_muller_brown.envs.muller_brown_continuous import MullerBrownContinuousEnv
